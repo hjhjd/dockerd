@@ -58,36 +58,6 @@ jobs:
       env:
        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Setup Android NDK
-      run: |
-        # 下载并解压 NDK r27（Termux 当前推荐版本）
-        wget -q https://dl.google.com/android/repository/android-ndk-r27-linux.zip
-        unzip -q android-ndk-r27-linux.zip
-        echo "ANDROID_NDK_HOME=$PWD/android-ndk-r27" >> $GITHUB_ENV
-        echo "NDK=$PWD/android-ndk-r27" >> $GITHUB_ENV
-    
-    - name: Debug container NDK
-      run: |
-        cd termux-packages
-        
-        # 先启动容器
-        ./scripts/run-docker.sh true
-        
-        # 查找 NDK 可能的位置
-        echo "=== Checking common NDK paths ==="
-        for path in /home/builder/lib/android-ndk* /opt/android-ndk* /usr/local/android-ndk* /android-ndk*; do
-          sudo docker exec termux-package-builder ls -la "$path" 2>/dev/null && echo "Found at: $path" || echo "Not at: $path"
-        done
-        
-        echo "=== Searching for ndk-build ==="
-        sudo docker exec termux-package-builder find / -name "ndk-build" 2>/dev/null | head -5
-        
-        echo "=== Checking environment variables ==="
-        sudo docker exec termux-package-builder env | grep -i ndk
-        
-        echo "=== Checking scripts/properties.sh for NDK path ==="
-        sudo docker exec termux-package-builder cat /home/builder/termux-packages/scripts/properties.sh | grep -i ndk
-    
     - name: Build Docker
       run: |
         cd termux-packages
@@ -95,7 +65,9 @@ jobs:
         version="${{ env.DOCKER_VERSION }}"
         sed -i "s|^TERMUX_PKG_VERSION=.*|TERMUX_PKG_VERSION=${version#v}|" root-packages/docker/build.sh
         
-        # 先跑这个看看能否成功
+        # 修改 run-docker.sh，传递容器内实际的 NDK 路径
+        sed -i 's|exec --env "DOCKER_EXEC_PID_FILE_PATH=$DOCKER_EXEC_PID_FILE_PATH"|exec --env "DOCKER_EXEC_PID_FILE_PATH=$DOCKER_EXEC_PID_FILE_PATH" --env "ANDROID_NDK_HOME=/home/builder/lib/android-ndk-r29" --env "NDK=/home/builder/lib/android-ndk-r29"|' scripts/run-docker.sh
+        
         ./scripts/run-docker.sh ./build-package.sh -i --format pacman docker docker-compose docker-buildx
         
         cd output

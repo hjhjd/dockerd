@@ -65,7 +65,9 @@ jobs:
         unzip -q android-ndk-r27-linux.zip
         echo "ANDROID_NDK_HOME=$PWD/android-ndk-r27" >> $GITHUB_ENV
         echo "NDK=$PWD/android-ndk-r27" >> $GITHUB_ENV
-    
+    - name: Debug run-docker.sh
+      run: cat termux-packages/scripts/run-docker.sh
+      
     - name: Build Docker
       run: |
         cd termux-packages

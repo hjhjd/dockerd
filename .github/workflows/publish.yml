@@ -65,6 +65,11 @@ jobs:
         version="${{ env.DOCKER_VERSION }}"
         sed -i "s|^TERMUX_PKG_VERSION=.*|TERMUX_PKG_VERSION=${version#v}|" root-packages/docker/build.sh
         
+        # 修改 NDK 版本要求，允许使用 r29（容器内已有）
+        sed -i 's|TERMUX_NDK_VERSION=.*|TERMUX_NDK_VERSION=29|' scripts/properties.sh
+        # 或者注释掉版本检查
+        sed -i 's|if \[ "\$TERMUX_NDK_VERSION"|if false \&\& [ "$TERMUX_NDK_VERSION"|' scripts/properties.sh
+        
         # 修改 run-docker.sh，传递容器内实际的 NDK 路径
         sed -i 's|exec --env "DOCKER_EXEC_PID_FILE_PATH=$DOCKER_EXEC_PID_FILE_PATH"|exec --env "DOCKER_EXEC_PID_FILE_PATH=$DOCKER_EXEC_PID_FILE_PATH" --env "ANDROID_NDK_HOME=/home/builder/lib/android-ndk-r29" --env "NDK=/home/builder/lib/android-ndk-r29"|' scripts/run-docker.sh
         

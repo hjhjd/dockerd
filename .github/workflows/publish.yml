@@ -65,21 +65,19 @@ jobs:
         unzip -q android-ndk-r27-linux.zip
         echo "ANDROID_NDK_HOME=$PWD/android-ndk-r27" >> $GITHUB_ENV
         echo "NDK=$PWD/android-ndk-r27" >> $GITHUB_ENV
-    - name: Debug run-docker.sh
-      run: cat termux-packages/scripts/run-docker.sh
-      
+    
     - name: Build Docker
       run: |
         cd termux-packages
         patch -p1 < ../patches/docker.patch
+        
+        # 修改 run-docker.sh，让它传递 NDK 环境变量
+        sed -i "s|exec --env \"DOCKER_EXEC_PID_FILE_PATH=\$DOCKER_EXEC_PID_FILE_PATH\"|exec --env \"DOCKER_EXEC_PID_FILE_PATH=\$DOCKER_EXEC_PID_FILE_PATH\" --env \"ANDROID_NDK_HOME=$ANDROID_NDK_HOME\" --env \"NDK=$ANDROID_NDK_HOME\"|" scripts/run-docker.sh
+        
         version="${{ env.DOCKER_VERSION }}"
         sed -i "s|^TERMUX_PKG_VERSION=.*|TERMUX_PKG_VERSION=${version#v}|" root-packages/docker/build.sh
         
-        # 关键：把 NDK 路径传递给容器
-        ./scripts/run-docker.sh \
-          -e ANDROID_NDK_HOME=$ANDROID_NDK_HOME \
-          -e NDK=$ANDROID_NDK_HOME \
-          ./build-package.sh -i --format pacman docker docker-compose docker-buildx
+        ./scripts/run-docker.sh ./build-package.sh -i --format pacman docker docker-compose docker-buildx
         
         cd output
         bash ../../package_docker.sh

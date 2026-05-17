@@ -58,13 +58,27 @@ jobs:
       env:
        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
+    - name: Setup Android NDK
+      run: |
+        # 下载并解压 NDK r27（Termux 当前推荐版本）
+        wget -q https://dl.google.com/android/repository/android-ndk-r27-linux.zip
+        unzip -q android-ndk-r27-linux.zip
+        echo "ANDROID_NDK_HOME=$PWD/android-ndk-r27" >> $GITHUB_ENV
+        echo "NDK=$PWD/android-ndk-r27" >> $GITHUB_ENV
+    
     - name: Build Docker
       run: |
         cd termux-packages
         patch -p1 < ../patches/docker.patch
         version="${{ env.DOCKER_VERSION }}"
         sed -i "s|^TERMUX_PKG_VERSION=.*|TERMUX_PKG_VERSION=${version#v}|" root-packages/docker/build.sh
-        ./scripts/run-docker.sh ./build-package.sh -i --format pacman docker docker-compose docker-buildx
+        
+        # 关键：把 NDK 路径传递给容器
+        ./scripts/run-docker.sh \
+          -e ANDROID_NDK_HOME=$ANDROID_NDK_HOME \
+          -e NDK=$ANDROID_NDK_HOME \
+          ./build-package.sh -i --format pacman docker docker-compose docker-buildx
+        
         cd output
         bash ../../package_docker.sh
         mv docker.tar.xz ../../module/docker.tar.xz

@@ -70,21 +70,19 @@ jobs:
         cd $GITHUB_WORKSPACE/termux-packages
         patch -p1 < ../patches/docker.patch
         version="${{ env.DOCKER_VERSION }}"
-        sed -i "s|^TERMUX_PKG_VERSION=.*|TERMUX_PKG_VERSION=${version#v}|" root-packages/docker/build.sh
+        
+        # 修复版本号和下载 URL
+        sed -i "s|^TERMUX_PKG_VERSION=.*|TERMUX_PKG_VERSION=${version#docker-v}|" root-packages/docker/build.sh
+        sed -i 's|https://github.com/moby/moby/archive/v\${TERMUX_PKG_VERSION}|https://github.com/moby/moby/archive/docker-v${TERMUX_PKG_VERSION}|g' root-packages/docker/build.sh
+        
+        # 显示修改后的结果（调试用）
+        echo "=== Docker build.sh SRCURL ==="
+        grep "TERMUX_PKG_SRCURL\|TERMUX_PKG_VERSION" root-packages/docker/build.sh
         
         # 修改 run-docker.sh 挂载正确的 NDK 并设置环境变量
-        # 先备份原文件
         cp scripts/run-docker.sh scripts/run-docker.sh.bak
-        
-        # 在 docker run 命令中添加 NDK 卷挂载
         sed -i "/--volume \$VOLUME/a \    --volume /opt/android-ndk/android-ndk-r27c:/home/builder/lib/android-ndk-r27c \\\\" scripts/run-docker.sh
-        
-        # 修改环境变量传递
         sed -i 's|exec --env "DOCKER_EXEC_PID_FILE_PATH=$DOCKER_EXEC_PID_FILE_PATH"|exec --env "DOCKER_EXEC_PID_FILE_PATH=$DOCKER_EXEC_PID_FILE_PATH" --env "ANDROID_NDK_HOME=/home/builder/lib/android-ndk-r27c" --env "NDK=/home/builder/lib/android-ndk-r27c"|' scripts/run-docker.sh
-        
-        # 显示修改后的脚本（调试用）
-        echo "=== Modified run-docker.sh ==="
-        cat scripts/run-docker.sh
         
         ./scripts/run-docker.sh ./build-package.sh -i --format pacman docker docker-compose docker-buildx
         

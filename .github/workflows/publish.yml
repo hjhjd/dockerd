@@ -75,16 +75,18 @@ jobs:
         sed -i "s|^TERMUX_PKG_VERSION=.*|TERMUX_PKG_VERSION=${version#docker-v}|" root-packages/docker/build.sh
         sed -i 's|https://github.com/moby/moby/archive/v\${TERMUX_PKG_VERSION}|https://github.com/moby/moby/archive/docker-v${TERMUX_PKG_VERSION}|g' root-packages/docker/build.sh
         
-        # 显示修改后的结果（调试用）
-        echo "=== Docker build.sh SRCURL ==="
-        grep "TERMUX_PKG_SRCURL\|TERMUX_PKG_VERSION" root-packages/docker/build.sh
+        # 修复 CLI 补丁文件路径
+        if [ -f "root-packages/docker/fix-paths-cli.patch" ]; then
+          sed -i 's|cli/vendor/github.com/docker/docker/|cli/vendor/github.com/moby/moby/|g' root-packages/docker/fix-paths-cli.patch
+        fi
         
         # 修改 run-docker.sh 挂载正确的 NDK 并设置环境变量
         cp scripts/run-docker.sh scripts/run-docker.sh.bak
         sed -i "/--volume \$VOLUME/a \    --volume /opt/android-ndk/android-ndk-r27c:/home/builder/lib/android-ndk-r27c \\\\" scripts/run-docker.sh
         sed -i 's|exec --env "DOCKER_EXEC_PID_FILE_PATH=$DOCKER_EXEC_PID_FILE_PATH"|exec --env "DOCKER_EXEC_PID_FILE_PATH=$DOCKER_EXEC_PID_FILE_PATH" --env "ANDROID_NDK_HOME=/home/builder/lib/android-ndk-r27c" --env "NDK=/home/builder/lib/android-ndk-r27c"|' scripts/run-docker.sh
         
-        ./scripts/run-docker.sh ./build-package.sh -i --format pacman docker docker-compose docker-buildx
+        # 以非交互模式运行构建
+        ./scripts/run-docker.sh bash -c "./build-package.sh -i --format pacman docker docker-compose docker-buildx < /dev/null"
         
         cd output
         bash ../../package_docker.sh
